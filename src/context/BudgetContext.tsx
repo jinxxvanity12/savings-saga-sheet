@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { toast } from 'sonner';
+import { format, parse, getMonth, getYear } from 'date-fns';
 
 // Types
 export type TransactionType = 'income' | 'expense';
@@ -28,6 +29,12 @@ export interface SavingsGoal {
   deadline?: string;
 }
 
+export interface MonthData {
+  transactions: Transaction[];
+  budgets: Budget[];
+  savingsGoals: SavingsGoal[];
+}
+
 interface BudgetContextType {
   transactions: Transaction[];
   budgets: Budget[];
@@ -46,6 +53,8 @@ interface BudgetContextType {
   totalIncome: number;
   totalExpenses: number;
   balance: number;
+  currentMonth: Date;
+  setCurrentMonth: (date: Date) => void;
 }
 
 // Default categories
@@ -56,29 +65,50 @@ const DEFAULT_CATEGORIES = [
   'Salary', 'Investments', 'Side Hustle', 'Refunds'
 ];
 
+// Helper to get a month key string from a date (format: MM/YYYY)
+const getMonthKey = (date: Date): string => {
+  return format(date, 'MM/yyyy');
+};
+
 // Create context
 const BudgetContext = createContext<BudgetContextType | undefined>(undefined);
 
 // Provider component
 export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('transactions');
-    return saved ? JSON.parse(saved) : [];
+  // Current selected month
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+  const currentMonthKey = getMonthKey(currentMonth);
+  
+  // Store data for each month separately
+  const [monthlyData, setMonthlyData] = useState<Record<string, MonthData>>(() => {
+    const saved = localStorage.getItem('monthlyData');
+    return saved ? JSON.parse(saved) : {};
   });
 
-  const [budgets, setBudgets] = useState<Budget[]>(() => {
-    const saved = localStorage.getItem('budgets');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Default empty data for a new month
+  const emptyMonthData: MonthData = {
+    transactions: [],
+    budgets: [],
+    savingsGoals: []
+  };
 
-  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>(() => {
-    const saved = localStorage.getItem('savingsGoals');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Get or initialize current month's data
+  const getCurrentMonthData = (): MonthData => {
+    if (!monthlyData[currentMonthKey]) {
+      return emptyMonthData;
+    }
+    return monthlyData[currentMonthKey];
+  };
+
+  // Shorthand for current month's data
+  const currentData = getCurrentMonthData();
+  const transactions = currentData.transactions || [];
+  const budgets = currentData.budgets || [];
+  const savingsGoals = currentData.savingsGoals || [];
 
   const [categories] = useState<string[]>(DEFAULT_CATEGORIES);
 
-  // Calculate totals
+  // Calculate totals for current month
   const totalIncome = transactions
     .filter(t => t.type === 'income')
     .reduce((sum, transaction) => sum + transaction.amount, 0);
@@ -89,18 +119,18 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const balance = totalIncome - totalExpenses;
 
+  // Update the monthly data with new values
+  const updateMonthData = (newData: MonthData) => {
+    setMonthlyData(prev => ({
+      ...prev,
+      [currentMonthKey]: newData
+    }));
+  };
+
   // Persist to localStorage
   useEffect(() => {
-    localStorage.setItem('transactions', JSON.stringify(transactions));
-  }, [transactions]);
-
-  useEffect(() => {
-    localStorage.setItem('budgets', JSON.stringify(budgets));
-  }, [budgets]);
-
-  useEffect(() => {
-    localStorage.setItem('savingsGoals', JSON.stringify(savingsGoals));
-  }, [savingsGoals]);
+    localStorage.setItem('monthlyData', JSON.stringify(monthlyData));
+  }, [monthlyData]);
 
   // Transaction functions
   const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
@@ -109,16 +139,20 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       id: crypto.randomUUID(),
     };
     
-    setTransactions(prev => [newTransaction, ...prev]);
+    const updatedTransactions = [newTransaction, ...transactions];
     
-    // Update budget spent if it's an expense
-    if (transaction.type === 'expense') {
-      setBudgets(prev => prev.map(budget => 
-        budget.category === transaction.category
-          ? { ...budget, spent: budget.spent + transaction.amount }
-          : budget
-      ));
-    }
+    // Update current month data
+    updateMonthData({
+      ...currentData,
+      transactions: updatedTransactions,
+      budgets: transaction.type === 'expense' 
+        ? budgets.map(budget => 
+            budget.category === transaction.category
+              ? { ...budget, spent: budget.spent + transaction.amount }
+              : budget
+          )
+        : budgets
+    });
     
     toast.success(`${transaction.type === 'income' ? 'Income' : 'Expense'} added`, {
       description: `${transaction.description}: $${transaction.amount.toFixed(2)}`
@@ -128,44 +162,62 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const deleteTransaction = (id: string) => {
     const transaction = transactions.find(t => t.id === id);
     
-    if (transaction && transaction.type === 'expense') {
-      // Update budget spent when deleting an expense
-      setBudgets(prev => prev.map(budget => 
-        budget.category === transaction.category
-          ? { ...budget, spent: Math.max(0, budget.spent - transaction.amount) }
-          : budget
-      ));
-    }
+    if (!transaction) return;
     
-    setTransactions(prev => prev.filter(t => t.id !== id));
+    const updatedTransactions = transactions.filter(t => t.id !== id);
+    
+    // Update current month data
+    updateMonthData({
+      ...currentData,
+      transactions: updatedTransactions,
+      budgets: transaction.type === 'expense'
+        ? budgets.map(budget => 
+            budget.category === transaction.category
+              ? { ...budget, spent: Math.max(0, budget.spent - transaction.amount) }
+              : budget
+          )
+        : budgets
+    });
+    
     toast.success('Transaction deleted');
   };
 
   const updateTransaction = (updatedTransaction: Transaction) => {
     const oldTransaction = transactions.find(t => t.id === updatedTransaction.id);
     
-    setTransactions(prev => prev.map(t => 
-      t.id === updatedTransaction.id ? updatedTransaction : t
-    ));
+    if (!oldTransaction) return;
     
-    // Update budget spent if necessary
-    if (oldTransaction && oldTransaction.type === 'expense') {
-      // Remove old expense amount
-      setBudgets(prev => prev.map(budget => 
+    const updatedTransactions = transactions.map(t => 
+      t.id === updatedTransaction.id ? updatedTransaction : t
+    );
+    
+    // Create updated budgets
+    let updatedBudgets = [...budgets];
+    
+    // Remove old expense amount if it was an expense
+    if (oldTransaction.type === 'expense') {
+      updatedBudgets = updatedBudgets.map(budget => 
         budget.category === oldTransaction.category
           ? { ...budget, spent: Math.max(0, budget.spent - oldTransaction.amount) }
           : budget
-      ));
+      );
     }
     
+    // Add new expense amount if it's an expense
     if (updatedTransaction.type === 'expense') {
-      // Add new expense amount
-      setBudgets(prev => prev.map(budget => 
+      updatedBudgets = updatedBudgets.map(budget => 
         budget.category === updatedTransaction.category
           ? { ...budget, spent: budget.spent + updatedTransaction.amount }
           : budget
-      ));
+      );
     }
+    
+    // Update current month data
+    updateMonthData({
+      ...currentData,
+      transactions: updatedTransactions,
+      budgets: updatedBudgets
+    });
     
     toast.success('Transaction updated');
   };
@@ -175,30 +227,51 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Check if budget already exists for category
     const existingBudget = budgets.find(b => b.category === budget.category);
     
+    let updatedBudgets;
     if (existingBudget) {
-      setBudgets(prev => prev.map(b => 
+      updatedBudgets = budgets.map(b => 
         b.category === budget.category ? budget : b
-      ));
+      );
       toast.success('Budget updated', {
         description: `${budget.category}: $${budget.amount.toFixed(2)}`
       });
     } else {
-      setBudgets(prev => [...prev, budget]);
+      updatedBudgets = [...budgets, budget];
       toast.success('Budget added', {
         description: `${budget.category}: $${budget.amount.toFixed(2)}`
       });
     }
+    
+    // Update current month data
+    updateMonthData({
+      ...currentData,
+      budgets: updatedBudgets
+    });
   };
 
   const updateBudget = (updatedBudget: Budget) => {
-    setBudgets(prev => prev.map(b => 
+    const updatedBudgets = budgets.map(b => 
       b.category === updatedBudget.category ? updatedBudget : b
-    ));
+    );
+    
+    // Update current month data
+    updateMonthData({
+      ...currentData,
+      budgets: updatedBudgets
+    });
+    
     toast.success('Budget updated');
   };
 
   const deleteBudget = (category: string) => {
-    setBudgets(prev => prev.filter(b => b.category !== category));
+    const updatedBudgets = budgets.filter(b => b.category !== category);
+    
+    // Update current month data
+    updateMonthData({
+      ...currentData,
+      budgets: updatedBudgets
+    });
+    
     toast.success('Budget deleted');
   };
 
@@ -209,42 +282,70 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       id: crypto.randomUUID(),
     };
     
-    setSavingsGoals(prev => [...prev, newGoal]);
+    const updatedGoals = [...savingsGoals, newGoal];
+    
+    // Update current month data
+    updateMonthData({
+      ...currentData,
+      savingsGoals: updatedGoals
+    });
+    
     toast.success('Savings goal added', {
       description: `${goal.name}: $${goal.targetAmount.toFixed(2)}`
     });
   };
 
   const updateSavingsGoal = (updatedGoal: SavingsGoal) => {
-    setSavingsGoals(prev => prev.map(g => 
+    const updatedGoals = savingsGoals.map(g => 
       g.id === updatedGoal.id ? updatedGoal : g
-    ));
+    );
+    
+    // Update current month data
+    updateMonthData({
+      ...currentData,
+      savingsGoals: updatedGoals
+    });
+    
     toast.success('Savings goal updated');
   };
 
   const deleteSavingsGoal = (id: string) => {
-    setSavingsGoals(prev => prev.filter(g => g.id !== id));
+    const updatedGoals = savingsGoals.filter(g => g.id !== id);
+    
+    // Update current month data
+    updateMonthData({
+      ...currentData,
+      savingsGoals: updatedGoals
+    });
+    
     toast.success('Savings goal deleted');
   };
 
   const contributeSavingsGoal = (id: string, amount: number) => {
-    setSavingsGoals(prev => prev.map(g => 
+    const goal = savingsGoals.find(g => g.id === id);
+    
+    if (!goal) return;
+    
+    const updatedGoals = savingsGoals.map(g => 
       g.id === id
         ? { ...g, currentAmount: g.currentAmount + amount }
         : g
-    ));
+    );
+    
+    // Update current month data
+    updateMonthData({
+      ...currentData,
+      savingsGoals: updatedGoals
+    });
     
     // Add as expense transaction
-    const goal = savingsGoals.find(g => g.id === id);
-    if (goal) {
-      addTransaction({
-        amount,
-        description: `Contribution to ${goal.name}`,
-        category: 'Savings',
-        date: new Date().toISOString().split('T')[0],
-        type: 'expense'
-      });
-    }
+    addTransaction({
+      amount,
+      description: `Contribution to ${goal.name}`,
+      category: 'Savings',
+      date: new Date().toISOString().split('T')[0],
+      type: 'expense'
+    });
     
     toast.success('Contribution made', {
       description: `$${amount.toFixed(2)} added to savings goal`
@@ -268,7 +369,9 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     contributeSavingsGoal,
     totalIncome,
     totalExpenses,
-    balance
+    balance,
+    currentMonth,
+    setCurrentMonth
   };
 
   return (

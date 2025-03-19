@@ -19,24 +19,23 @@ type MonthData = {
 };
 
 const MonthlyDashboard = () => {
-  const { transactions } = useBudget();
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const selectedYear = selectedDate.getFullYear().toString();
-  const selectedMonth = selectedDate.getMonth();
+  const { transactions, currentMonth, setCurrentMonth } = useBudget();
+  const selectedYear = currentMonth.getFullYear().toString();
+  const selectedMonth = currentMonth.getMonth();
   const isMobile = useIsMobile();
   
   // Navigate to previous month
   const goToPreviousMonth = () => {
-    setSelectedDate(prevDate => subMonths(prevDate, 1));
+    setCurrentMonth(subMonths(currentMonth, 1));
   };
   
   // Navigate to next month
   const goToNextMonth = () => {
-    setSelectedDate(prevDate => addMonths(prevDate, 1));
+    setCurrentMonth(addMonths(currentMonth, 1));
   };
   
   // Get current month name for display
-  const currentMonthName = format(selectedDate, 'MMMM yyyy');
+  const currentMonthName = format(currentMonth, 'MMMM yyyy');
   
   // Get available years from transactions
   const availableYears = useMemo(() => {
@@ -49,19 +48,18 @@ const MonthlyDashboard = () => {
         }
       }
     });
+    
+    // Always include the current selected year
+    years.add(selectedYear);
+    
     return Array.from(years).sort((a, b) => b.localeCompare(a)); // Sort descending
-  }, [transactions]);
+  }, [transactions, selectedYear]);
 
-  // If no transactions or selected year not in available years, default to current year
-  const currentYear = new Date().getFullYear().toString();
-  const yearToUse = availableYears.includes(selectedYear) ? selectedYear : 
-                    (availableYears.length > 0 ? availableYears[0] : currentYear);
-                   
   // Calculate monthly data
   const monthlyData = useMemo(() => {
     // Initialize array for all 12 months
     const months = Array.from({ length: 12 }, (_, i) => {
-      const monthDate = new Date(parseInt(yearToUse), i, 1);
+      const monthDate = new Date(parseInt(selectedYear), i, 1);
       return {
         name: format(monthDate, 'MMM'),
         income: 0,
@@ -77,7 +75,7 @@ const MonthlyDashboard = () => {
       if (!isValid(date)) return;
       
       const year = getYear(date);
-      if (year.toString() !== yearToUse) return;
+      if (year.toString() !== selectedYear) return;
       
       const monthIndex = getMonth(date);
       
@@ -94,7 +92,7 @@ const MonthlyDashboard = () => {
     });
 
     return months;
-  }, [transactions, yearToUse]);
+  }, [transactions, selectedYear]);
 
   // Calculate totals for the selected year
   const yearlyTotals = useMemo(() => {
@@ -116,7 +114,7 @@ const MonthlyDashboard = () => {
         const date = new Date(t.date);
         return isValid(date) && 
                getMonth(date) === selectedMonth && 
-               getYear(date) === parseInt(yearToUse) && 
+               getYear(date) === parseInt(selectedYear) && 
                t.type === 'income';
       })
       .reduce((sum, t) => sum + t.amount, 0);
@@ -126,7 +124,7 @@ const MonthlyDashboard = () => {
         const date = new Date(t.date);
         return isValid(date) && 
                getMonth(date) === selectedMonth && 
-               getYear(date) === parseInt(yearToUse) && 
+               getYear(date) === parseInt(selectedYear) && 
                t.type === 'expense';
       })
       .reduce((sum, t) => sum + t.amount, 0);
@@ -134,7 +132,7 @@ const MonthlyDashboard = () => {
     const savings = income - expenses;
     
     return { income, expenses, savings };
-  }, [transactions, selectedMonth, yearToUse]);
+  }, [transactions, selectedMonth, selectedYear]);
 
   return (
     <Card className="animate-slide-up">
@@ -147,11 +145,11 @@ const MonthlyDashboard = () => {
           
           <div className="flex items-center gap-2">
             <Select
-              value={yearToUse}
+              value={selectedYear}
               onValueChange={(value) => {
-                const newDate = new Date(selectedDate);
+                const newDate = new Date(currentMonth);
                 newDate.setFullYear(parseInt(value));
-                setSelectedDate(newDate);
+                setCurrentMonth(newDate);
               }}
             >
               <SelectTrigger className="w-[120px]">
@@ -163,7 +161,9 @@ const MonthlyDashboard = () => {
                     <SelectItem key={year} value={year}>{year}</SelectItem>
                   ))
                 ) : (
-                  <SelectItem value={currentYear}>{currentYear}</SelectItem>
+                  <SelectItem value={new Date().getFullYear().toString()}>
+                    {new Date().getFullYear()}
+                  </SelectItem>
                 )}
               </SelectContent>
             </Select>
@@ -249,7 +249,7 @@ const MonthlyDashboard = () => {
         <div className="h-[300px] mt-4">
           {monthlyData.length === 0 ? (
             <div className="flex items-center justify-center h-full text-muted-foreground">
-              <p>No data available for {yearToUse}</p>
+              <p>No data available for {selectedYear}</p>
             </div>
           ) : (
             <ChartContainer
