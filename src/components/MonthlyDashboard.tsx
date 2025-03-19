@@ -4,9 +4,11 @@ import { useBudget, Transaction } from '@/context/BudgetContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { format, parse, isValid, getYear, getMonth, startOfMonth, endOfMonth } from 'date-fns';
+import { format, parse, isValid, getYear, getMonth, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 type MonthData = {
   name: string;
@@ -18,8 +20,23 @@ type MonthData = {
 
 const MonthlyDashboard = () => {
   const { transactions } = useBudget();
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const selectedYear = selectedDate.getFullYear().toString();
+  const selectedMonth = selectedDate.getMonth();
   const isMobile = useIsMobile();
+  
+  // Navigate to previous month
+  const goToPreviousMonth = () => {
+    setSelectedDate(prevDate => subMonths(prevDate, 1));
+  };
+  
+  // Navigate to next month
+  const goToNextMonth = () => {
+    setSelectedDate(prevDate => addMonths(prevDate, 1));
+  };
+  
+  // Get current month name for display
+  const currentMonthName = format(selectedDate, 'MMMM yyyy');
   
   // Get available years from transactions
   const availableYears = useMemo(() => {
@@ -92,6 +109,33 @@ const MonthlyDashboard = () => {
     );
   }, [monthlyData]);
 
+  // Calculate data for the currently selected month
+  const currentMonthData = useMemo(() => {
+    const income = transactions
+      .filter(t => {
+        const date = new Date(t.date);
+        return isValid(date) && 
+               getMonth(date) === selectedMonth && 
+               getYear(date) === parseInt(yearToUse) && 
+               t.type === 'income';
+      })
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    const expenses = transactions
+      .filter(t => {
+        const date = new Date(t.date);
+        return isValid(date) && 
+               getMonth(date) === selectedMonth && 
+               getYear(date) === parseInt(yearToUse) && 
+               t.type === 'expense';
+      })
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    const savings = income - expenses;
+    
+    return { income, expenses, savings };
+  }, [transactions, selectedMonth, yearToUse]);
+
   return (
     <Card className="animate-slide-up">
       <CardHeader>
@@ -101,28 +145,85 @@ const MonthlyDashboard = () => {
             <CardDescription>Track your finances over time</CardDescription>
           </div>
           
-          <Select
-            value={yearToUse}
-            onValueChange={setSelectedYear}
-          >
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Year" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableYears.length > 0 ? (
-                availableYears.map(year => (
-                  <SelectItem key={year} value={year}>{year}</SelectItem>
-                ))
-              ) : (
-                <SelectItem value={currentYear}>{currentYear}</SelectItem>
-              )}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Select
+              value={yearToUse}
+              onValueChange={(value) => {
+                const newDate = new Date(selectedDate);
+                newDate.setFullYear(parseInt(value));
+                setSelectedDate(newDate);
+              }}
+            >
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableYears.length > 0 ? (
+                  availableYears.map(year => (
+                    <SelectItem key={year} value={year}>{year}</SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value={currentYear}>{currentYear}</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </CardHeader>
       
       <CardContent>
+        {/* Month Navigation */}
+        <div className="flex items-center justify-between mb-6">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={goToPreviousMonth}
+            className="flex items-center gap-1"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Previous</span>
+          </Button>
+          
+          <h3 className="text-lg font-medium">{currentMonthName}</h3>
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={goToNextMonth}
+            className="flex items-center gap-1"
+          >
+            <span className="hidden sm:inline">Next</span>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        
+        {/* Current Month Summary */}
         <div className="mb-6">
+          <div className="grid grid-cols-3 gap-4">
+            <YearlySummaryCard 
+              title="Month Income" 
+              amount={currentMonthData.income} 
+              className="bg-emerald-50 border-emerald-100" 
+            />
+            <YearlySummaryCard 
+              title="Month Expenses" 
+              amount={currentMonthData.expenses} 
+              className="bg-rose-50 border-rose-100" 
+            />
+            <YearlySummaryCard 
+              title="Month Savings" 
+              amount={currentMonthData.savings} 
+              className={currentMonthData.savings >= 0 
+                ? "bg-blue-50 border-blue-100" 
+                : "bg-amber-50 border-amber-100"
+              } 
+            />
+          </div>
+        </div>
+        
+        {/* Year Summary */}
+        <div className="mb-6 pt-4 border-t">
+          <h3 className="text-sm font-medium text-muted-foreground mb-3">Year Summary</h3>
           <div className="grid grid-cols-3 gap-4">
             <YearlySummaryCard 
               title="Total Income" 
