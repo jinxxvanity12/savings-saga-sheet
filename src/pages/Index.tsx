@@ -5,6 +5,7 @@ import TransactionList from '@/components/TransactionList';
 import BudgetOverview from '@/components/BudgetOverview';
 import SavingsGoals from '@/components/SavingsGoals';
 import CategoryBreakdown from '@/components/CategoryBreakdown';
+import MonthlyDashboard from '@/components/MonthlyDashboard';
 import TransactionForm from '@/components/TransactionForm';
 import { BudgetProvider } from '@/context/BudgetContext';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -35,6 +36,7 @@ const Index = () => {
 const DesktopLayout = () => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <MonthlyDashboard />
       <TransactionList />
       <BudgetOverview />
       <SavingsGoals />
@@ -45,13 +47,18 @@ const DesktopLayout = () => {
 
 const MobileLayout = () => {
   return (
-    <Tabs defaultValue="transactions" className="w-full">
-      <TabsList className="grid grid-cols-4 w-full mb-6">
+    <Tabs defaultValue="monthly" className="w-full">
+      <TabsList className="grid grid-cols-5 w-full mb-6">
+        <TabsTrigger value="monthly">Monthly</TabsTrigger>
         <TabsTrigger value="transactions">Transactions</TabsTrigger>
         <TabsTrigger value="budgets">Budgets</TabsTrigger>
         <TabsTrigger value="savings">Savings</TabsTrigger>
         <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
       </TabsList>
+      
+      <TabsContent value="monthly" className="mt-0">
+        <MonthlyDashboard />
+      </TabsContent>
       
       <TabsContent value="transactions" className="mt-0">
         <TransactionList />
