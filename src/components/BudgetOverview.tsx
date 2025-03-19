@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useBudget, Budget } from '@/context/BudgetContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -71,7 +70,7 @@ const BudgetOverview = () => {
               <span>Add Budget</span>
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[425px] w-[95vw] mx-auto">
             <DialogHeader>
               <DialogTitle>Create New Budget</DialogTitle>
               <DialogDescription>Set a spending limit for a category</DialogDescription>
@@ -197,9 +196,6 @@ const BudgetItem = ({ budget }: BudgetItemProps) => {
         className={cn(
           isOverBudget ? "bg-destructive/20" : "bg-muted", 
           "h-2"
-        )}
-        indicatorClassName={cn(
-          isOverBudget ? "bg-destructive" : percentage > 80 ? "bg-amber-500" : "bg-primary"
         )}
       />
       

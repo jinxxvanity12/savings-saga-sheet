@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // Define chart colors
 const COLORS = [
@@ -16,6 +17,7 @@ const COLORS = [
 
 const CategoryBreakdown = () => {
   const { transactions } = useBudget();
+  const isMobile = useIsMobile();
 
   const expenseData = useMemo(() => {
     // Filter to expenses only
@@ -53,16 +55,19 @@ const CategoryBreakdown = () => {
             <p className="text-sm mt-1">Add some expenses to see your breakdown</p>
           </div>
         ) : (
-          <div className="flex flex-col md:flex-row gap-6">
-            <div className="flex-1 min-h-[300px]">
-              <ResponsiveContainer width="100%" height={300}>
+          <div className={cn(
+            "flex gap-6",
+            isMobile ? "flex-col" : "flex-row"
+          )}>
+            <div className="flex-1 min-h-[250px]">
+              <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
                   <Pie
                     data={expenseData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    outerRadius={100}
+                    outerRadius={isMobile ? 80 : 100}
                     fill="#8884d8"
                     dataKey="value"
                     animationDuration={1000}
@@ -82,7 +87,7 @@ const CategoryBreakdown = () => {
             </div>
             
             <div className="flex-1">
-              <ScrollArea className="h-[300px] pr-4">
+              <ScrollArea className="h-[250px] pr-4">
                 <div className="space-y-3 stagger-animate">
                   {expenseData.map((item, index) => (
                     <CategoryItem 

@@ -8,11 +8,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowUpCircle, ArrowDownCircle, Search, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const TransactionList = () => {
   const { transactions, deleteTransaction } = useBudget();
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const isMobile = useIsMobile();
 
   const filteredTransactions = transactions.filter(transaction => {
     // Filter by type
@@ -36,17 +38,20 @@ const TransactionList = () => {
   return (
     <Card className="animate-slide-up">
       <CardHeader>
-        <div className="flex justify-between items-center">
+        <div className={cn(
+          "flex items-center",
+          isMobile ? "flex-col gap-3" : "justify-between"
+        )}>
           <div>
             <CardTitle>Transactions</CardTitle>
             <CardDescription>Your recent financial activity</CardDescription>
           </div>
           
-          <div className="relative">
+          <div className="relative w-full md:w-auto">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search transactions..."
-              className="pl-8 w-[200px]"
+              className="pl-8 w-full md:w-[200px]"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -63,7 +68,7 @@ const TransactionList = () => {
           </TabsList>
           
           <TabsContent value={filter} className="mt-0">
-            <ScrollArea className="h-[400px] pr-4">
+            <ScrollArea className="h-[350px] pr-4">
               {filteredTransactions.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
                   <p>No transactions found</p>
@@ -75,7 +80,8 @@ const TransactionList = () => {
                     <TransactionItem 
                       key={transaction.id} 
                       transaction={transaction} 
-                      onDelete={deleteTransaction} 
+                      onDelete={deleteTransaction}
+                      isMobile={isMobile}
                     />
                   ))}
                 </div>
@@ -91,9 +97,10 @@ const TransactionList = () => {
 interface TransactionItemProps {
   transaction: Transaction;
   onDelete: (id: string) => void;
+  isMobile?: boolean;
 }
 
-const TransactionItem = ({ transaction, onDelete }: TransactionItemProps) => {
+const TransactionItem = ({ transaction, onDelete, isMobile }: TransactionItemProps) => {
   const [showDelete, setShowDelete] = useState(false);
   
   const handleDelete = (e: React.MouseEvent) => {
@@ -108,10 +115,12 @@ const TransactionItem = ({ transaction, onDelete }: TransactionItemProps) => {
       className="transaction-item rounded-md"
       onMouseEnter={() => setShowDelete(true)}
       onMouseLeave={() => setShowDelete(false)}
+      onTouchStart={() => setShowDelete(true)}
+      onTouchEnd={() => setTimeout(() => setShowDelete(false), 3000)}
     >
       <div className="flex items-center gap-3">
         <div className={cn(
-          "flex items-center justify-center h-9 w-9 rounded-full",
+          "flex items-center justify-center h-9 w-9 rounded-full flex-shrink-0",
           transaction.type === 'income' ? "bg-emerald-100" : "bg-rose-100"
         )}>
           {transaction.type === 'income' ? (
@@ -121,7 +130,7 @@ const TransactionItem = ({ transaction, onDelete }: TransactionItemProps) => {
           )}
         </div>
         
-        <div>
+        <div className={isMobile ? "flex-1 truncate" : ""}>
           <p className="font-medium leading-none">{transaction.description}</p>
           <div className="flex items-center mt-1 text-sm text-muted-foreground">
             <span>{transaction.category}</span>
@@ -133,7 +142,7 @@ const TransactionItem = ({ transaction, onDelete }: TransactionItemProps) => {
       
       <div className="flex items-center gap-3">
         <p className={cn(
-          "font-medium number-display",
+          "font-medium number-display whitespace-nowrap",
           transaction.type === 'income' ? "text-emerald-600" : "text-rose-600"
         )}>
           {transaction.type === 'income' ? '+' : '-'}
