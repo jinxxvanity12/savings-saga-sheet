@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { useBudget } from '@/context/BudgetContext';
 import { Button } from '@/components/ui/button';
-import { FileDown, FilePdf } from 'lucide-react';
+import { FileDown, FileText } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -40,12 +39,10 @@ const ExpenseExport = () => {
   };
   
   const filterAndSortTransactions = () => {
-    // Filter expenses only
     const expenses = transactions.filter(t => 
       t.type === 'expense' && selectedCategories.includes(t.category)
     );
     
-    // Sort based on selected option
     return expenses.sort((a, b) => {
       if (sortBy === 'category') {
         const categoryCompare = a.category.localeCompare(b.category);
@@ -78,37 +75,31 @@ const ExpenseExport = () => {
     toast.info('Preparing PDF export...');
     
     try {
-      // Get the element to export
       const element = document.getElementById('export-content');
       if (!element) {
         toast.error('Could not find content to export');
         return;
       }
       
-      // Use html2canvas to convert the element to an image
       const canvas = await html2canvas(element, {
-        scale: 2, // Higher scale for better quality
+        scale: 2,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff'
       });
       
-      // Create PDF
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
       });
       
-      // Add image to PDF (scaled to fit A4)
-      const imgWidth = 210; // A4 width in mm
+      const imgWidth = 210;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
       
-      // Generate filename based on current month
       const filename = `expenses_${format(currentMonth, 'yyyy_MM')}.pdf`;
       
-      // Save PDF
       pdf.save(filename);
       toast.success('PDF exported successfully');
     } catch (error) {
@@ -178,7 +169,6 @@ const ExpenseExport = () => {
               <div className="grid grid-cols-2 gap-2">
                 {categories
                   .filter(category => {
-                    // Check if this category has any expenses
                     return transactions.some(t => t.type === 'expense' && t.category === category);
                   })
                   .map(category => (
@@ -299,7 +289,7 @@ const ExpenseExport = () => {
           
           <div className="flex justify-end">
             <Button onClick={generatePDF} className="gap-2">
-              <FilePdf className="h-4 w-4" />
+              <FileText className="h-4 w-4" />
               Export PDF
             </Button>
           </div>

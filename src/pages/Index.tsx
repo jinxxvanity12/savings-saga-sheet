@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import TransactionList from '@/components/TransactionList';
 import BudgetOverview from '@/components/BudgetOverview';
@@ -14,14 +14,52 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Settings } from 'lucide-react';
+import { Settings, Layout, ArrowDown, ArrowUp, X } from 'lucide-react';
 
 // Add a CSS class for WordPress embedding
 const wpContainerClass = "budget-tracker-wp-container";
 
+// Define the widget components for customizing the dashboard
+const widgets = {
+  monthly: { component: MonthlyDashboard, title: "Monthly Dashboard" },
+  transactions: { component: TransactionList, title: "Transactions" },
+  budgets: { component: BudgetOverview, title: "Budget Overview" },
+  debt: { component: DebtTracker, title: "Debt Tracker" },
+  savings: { component: SavingsGoals, title: "Savings Goals" },
+  breakdown: { component: CategoryBreakdown, title: "Category Breakdown" },
+};
+
+type WidgetKey = keyof typeof widgets;
+
 const Index = () => {
   const isMobile = useIsMobile();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [layoutOpen, setLayoutOpen] = useState(false);
+  const [widgetOrder, setWidgetOrder] = useState<WidgetKey[]>(() => {
+    const saved = localStorage.getItem('dashboardLayout');
+    return saved ? JSON.parse(saved) : ['monthly', 'transactions', 'budgets', 'debt', 'savings', 'breakdown'];
+  });
+
+  // Save layout to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('dashboardLayout', JSON.stringify(widgetOrder));
+  }, [widgetOrder]);
+
+  const moveWidget = (index: number, direction: 'up' | 'down') => {
+    if ((direction === 'up' && index === 0) || 
+        (direction === 'down' && index === widgetOrder.length - 1)) {
+      return;
+    }
+
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    const newOrder = [...widgetOrder];
+    [newOrder[index], newOrder[newIndex]] = [newOrder[newIndex], newOrder[index]];
+    setWidgetOrder(newOrder);
+  };
+
+  const resetLayout = () => {
+    setWidgetOrder(['monthly', 'transactions', 'budgets', 'debt', 'savings', 'breakdown']);
+  };
 
   return (
     <BudgetProvider>
@@ -29,7 +67,59 @@ const Index = () => {
         <Header />
         
         <div className="container px-4 mx-auto max-w-7xl">
-          <div className="flex justify-end mb-4">
+          <div className="flex justify-end gap-2 mb-4">
+            <Dialog open={layoutOpen} onOpenChange={setLayoutOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Layout className="h-4 w-4" />
+                  Customize Layout
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Customize Dashboard Layout</DialogTitle>
+                  <DialogDescription>
+                    Drag and drop or use arrows to reorder widgets
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <div className="space-y-2">
+                    {widgetOrder.map((widget, index) => (
+                      <div 
+                        key={widget} 
+                        className="flex items-center justify-between p-2 bg-secondary/50 rounded-md"
+                      >
+                        <span>{widgets[widget].title}</span>
+                        <div className="flex gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => moveWidget(index, 'up')} 
+                            disabled={index === 0}
+                          >
+                            <ArrowUp className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => moveWidget(index, 'down')} 
+                            disabled={index === widgetOrder.length - 1}
+                          >
+                            <ArrowDown className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 flex justify-end">
+                    <Button variant="outline" size="sm" onClick={resetLayout}>
+                      Reset to Default
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            
             <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
@@ -53,9 +143,9 @@ const Index = () => {
           
           <main>
             {isMobile ? (
-              <MobileLayout />
+              <MobileLayout widgetOrder={widgetOrder} />
             ) : (
-              <DesktopLayout />
+              <DesktopLayout widgetOrder={widgetOrder} />
             )}
           </main>
         </div>
@@ -66,54 +156,40 @@ const Index = () => {
   );
 };
 
-const DesktopLayout = () => {
+const DesktopLayout = ({ widgetOrder }: { widgetOrder: WidgetKey[] }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <MonthlyDashboard />
-      <TransactionList />
-      <BudgetOverview />
-      <DebtTracker />
-      <SavingsGoals />
-      <CategoryBreakdown />
+      {widgetOrder.map((widget) => {
+        const Widget = widgets[widget].component;
+        return <Widget key={widget} />;
+      })}
     </div>
   );
 };
 
-const MobileLayout = () => {
+const MobileLayout = ({ widgetOrder }: { widgetOrder: WidgetKey[] }) => {
   return (
-    <Tabs defaultValue="monthly" className="w-full">
+    <Tabs defaultValue={widgetOrder[0]} className="w-full">
       <TabsList className="grid grid-cols-6 w-full mb-6">
-        <TabsTrigger value="monthly">Monthly</TabsTrigger>
-        <TabsTrigger value="transactions">Transactions</TabsTrigger>
-        <TabsTrigger value="budgets">Budgets</TabsTrigger>
-        <TabsTrigger value="debt">Debt</TabsTrigger>
-        <TabsTrigger value="savings">Savings</TabsTrigger>
-        <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
+        {widgetOrder.map((widget) => (
+          <TabsTrigger key={widget} value={widget}>
+            {widget === 'monthly' ? 'Monthly' : 
+             widget === 'transactions' ? 'Transactions' : 
+             widget === 'budgets' ? 'Budgets' : 
+             widget === 'debt' ? 'Debt' : 
+             widget === 'savings' ? 'Savings' : 'Breakdown'}
+          </TabsTrigger>
+        ))}
       </TabsList>
       
-      <TabsContent value="monthly" className="mt-0">
-        <MonthlyDashboard />
-      </TabsContent>
-      
-      <TabsContent value="transactions" className="mt-0">
-        <TransactionList />
-      </TabsContent>
-      
-      <TabsContent value="budgets" className="mt-0">
-        <BudgetOverview />
-      </TabsContent>
-      
-      <TabsContent value="debt" className="mt-0">
-        <DebtTracker />
-      </TabsContent>
-      
-      <TabsContent value="savings" className="mt-0">
-        <SavingsGoals />
-      </TabsContent>
-      
-      <TabsContent value="breakdown" className="mt-0">
-        <CategoryBreakdown />
-      </TabsContent>
+      {widgetOrder.map((widget) => {
+        const Widget = widgets[widget].component;
+        return (
+          <TabsContent key={widget} value={widget} className="mt-0">
+            <Widget />
+          </TabsContent>
+        );
+      })}
     </Tabs>
   );
 };
