@@ -1,3 +1,4 @@
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -17,6 +18,26 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  build: {
+    // Optimize output for PHP integration
+    outDir: 'dist',
+    assetsDir: './',
+    rollupOptions: {
+      output: {
+        // Ensure assets have consistent names for PHP integration
+        entryFileNames: 'index.js',
+        chunkFileNames: 'chunk-[name].js',
+        assetFileNames: (assetInfo) => {
+          const info = assetInfo.name.split('.');
+          const ext = info[info.length - 1];
+          if (/\.(css)$/i.test(assetInfo.name)) {
+            return 'index.css';
+          }
+          return `assets/[name].[ext]`;
+        },
+      },
     },
   },
 }));

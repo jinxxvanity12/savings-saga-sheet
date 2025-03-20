@@ -7,17 +7,20 @@ import { BrowserRouter, Routes, Route, HashRouter } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
-// Use HashRouter for WordPress compatibility
+// Use HashRouter for WordPress or PHP compatibility
 const isWordPress = window.location.href.includes('wp-content') || 
                     window.location.href.includes('wp-admin') ||
                     window.location.href.includes('wp-json');
 
+// Check for PHP environment
+const isPHP = document.querySelector('meta[name="integration-type"][content="php-compatible"]') !== null;
+
+// Use HashRouter if in WordPress or PHP
+const Router = (isWordPress || isPHP) ? HashRouter : BrowserRouter;
+
 const queryClient = new QueryClient();
 
 const App = () => {
-  // Choose router based on environment
-  const Router = isWordPress ? HashRouter : BrowserRouter;
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
