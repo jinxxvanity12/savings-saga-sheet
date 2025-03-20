@@ -32,7 +32,6 @@ export interface SavingsGoal {
 export interface MonthData {
   transactions: Transaction[];
   budgets: Budget[];
-  savingsGoals: SavingsGoal[];
 }
 
 interface BudgetContextType {
@@ -55,6 +54,7 @@ interface BudgetContextType {
   balance: number;
   currentMonth: Date;
   setCurrentMonth: (date: Date) => void;
+  allTransactions: Transaction[]; // Add this to expose all transactions
 }
 
 // Default categories
@@ -79,17 +79,22 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const currentMonthKey = getMonthKey(currentMonth);
   
-  // Store data for each month separately
+  // Store data for each month separately (without savings goals now)
   const [monthlyData, setMonthlyData] = useState<Record<string, MonthData>>(() => {
     const saved = localStorage.getItem('monthlyData');
     return saved ? JSON.parse(saved) : {};
   });
 
+  // Store savings goals separately to be shared across all months
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>(() => {
+    const saved = localStorage.getItem('savingsGoals');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   // Default empty data for a new month
   const emptyMonthData: MonthData = {
     transactions: [],
-    budgets: [],
-    savingsGoals: []
+    budgets: []
   };
 
   // Get or initialize current month's data
@@ -104,7 +109,9 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const currentData = getCurrentMonthData();
   const transactions = currentData.transactions || [];
   const budgets = currentData.budgets || [];
-  const savingsGoals = currentData.savingsGoals || [];
+
+  // Get all transactions across all months for yearly summaries
+  const allTransactions = Object.values(monthlyData).flatMap(monthData => monthData.transactions || []);
 
   const [categories] = useState<string[]>(DEFAULT_CATEGORIES);
 
@@ -131,6 +138,11 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   useEffect(() => {
     localStorage.setItem('monthlyData', JSON.stringify(monthlyData));
   }, [monthlyData]);
+
+  // Persist savings goals to localStorage
+  useEffect(() => {
+    localStorage.setItem('savingsGoals', JSON.stringify(savingsGoals));
+  }, [savingsGoals]);
 
   // Transaction functions
   const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
@@ -275,7 +287,7 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     toast.success('Budget deleted');
   };
 
-  // Savings goal functions
+  // Savings goal functions - now operating on the global savingsGoals state
   const addSavingsGoal = (goal: Omit<SavingsGoal, 'id'>) => {
     const newGoal: SavingsGoal = {
       ...goal,
@@ -283,12 +295,7 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
     
     const updatedGoals = [...savingsGoals, newGoal];
-    
-    // Update current month data
-    updateMonthData({
-      ...currentData,
-      savingsGoals: updatedGoals
-    });
+    setSavingsGoals(updatedGoals);
     
     toast.success('Savings goal added', {
       description: `${goal.name}: $${goal.targetAmount.toFixed(2)}`
@@ -300,11 +307,7 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       g.id === updatedGoal.id ? updatedGoal : g
     );
     
-    // Update current month data
-    updateMonthData({
-      ...currentData,
-      savingsGoals: updatedGoals
-    });
+    setSavingsGoals(updatedGoals);
     
     toast.success('Savings goal updated');
   };
@@ -312,11 +315,7 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const deleteSavingsGoal = (id: string) => {
     const updatedGoals = savingsGoals.filter(g => g.id !== id);
     
-    // Update current month data
-    updateMonthData({
-      ...currentData,
-      savingsGoals: updatedGoals
-    });
+    setSavingsGoals(updatedGoals);
     
     toast.success('Savings goal deleted');
   };
@@ -332,11 +331,7 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         : g
     );
     
-    // Update current month data
-    updateMonthData({
-      ...currentData,
-      savingsGoals: updatedGoals
-    });
+    setSavingsGoals(updatedGoals);
     
     // Add as expense transaction
     addTransaction({
@@ -371,7 +366,8 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     totalExpenses,
     balance,
     currentMonth,
-    setCurrentMonth
+    setCurrentMonth,
+    allTransactions // Expose all transactions
   };
 
   return (

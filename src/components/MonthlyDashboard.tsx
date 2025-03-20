@@ -19,7 +19,7 @@ type MonthData = {
 };
 
 const MonthlyDashboard = () => {
-  const { transactions, currentMonth, setCurrentMonth } = useBudget();
+  const { transactions, allTransactions, currentMonth, setCurrentMonth } = useBudget();
   const selectedYear = currentMonth.getFullYear().toString();
   const selectedMonth = currentMonth.getMonth();
   const isMobile = useIsMobile();
@@ -40,7 +40,7 @@ const MonthlyDashboard = () => {
   // Get available years from transactions
   const availableYears = useMemo(() => {
     const years = new Set<string>();
-    transactions.forEach(transaction => {
+    allTransactions.forEach(transaction => {
       if (transaction.date) {
         const date = new Date(transaction.date);
         if (isValid(date)) {
@@ -53,9 +53,9 @@ const MonthlyDashboard = () => {
     years.add(selectedYear);
     
     return Array.from(years).sort((a, b) => b.localeCompare(a)); // Sort descending
-  }, [transactions, selectedYear]);
+  }, [allTransactions, selectedYear]);
 
-  // Calculate monthly data
+  // Calculate monthly data using all transactions for the yearly chart
   const monthlyData = useMemo(() => {
     // Initialize array for all 12 months
     const months = Array.from({ length: 12 }, (_, i) => {
@@ -69,8 +69,8 @@ const MonthlyDashboard = () => {
       };
     });
 
-    // Fill with actual data
-    transactions.forEach(transaction => {
+    // Fill with actual data using allTransactions
+    allTransactions.forEach(transaction => {
       const date = new Date(transaction.date);
       if (!isValid(date)) return;
       
@@ -92,9 +92,9 @@ const MonthlyDashboard = () => {
     });
 
     return months;
-  }, [transactions, selectedYear]);
+  }, [allTransactions, selectedYear]);
 
-  // Calculate totals for the selected year
+  // Calculate totals for the selected year using all transactions
   const yearlyTotals = useMemo(() => {
     return monthlyData.reduce(
       (acc, month) => {
@@ -107,32 +107,20 @@ const MonthlyDashboard = () => {
     );
   }, [monthlyData]);
 
-  // Calculate data for the currently selected month
+  // Calculate data for the currently selected month using the current month's transactions
   const currentMonthData = useMemo(() => {
     const income = transactions
-      .filter(t => {
-        const date = new Date(t.date);
-        return isValid(date) && 
-               getMonth(date) === selectedMonth && 
-               getYear(date) === parseInt(selectedYear) && 
-               t.type === 'income';
-      })
+      .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
     
     const expenses = transactions
-      .filter(t => {
-        const date = new Date(t.date);
-        return isValid(date) && 
-               getMonth(date) === selectedMonth && 
-               getYear(date) === parseInt(selectedYear) && 
-               t.type === 'expense';
-      })
+      .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
     
     const savings = income - expenses;
     
     return { income, expenses, savings };
-  }, [transactions, selectedMonth, selectedYear]);
+  }, [transactions]);
 
   return (
     <Card className="animate-slide-up">

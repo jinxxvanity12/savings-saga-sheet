@@ -11,12 +11,15 @@ import { BudgetProvider } from '@/context/BudgetContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+// Add a CSS class for WordPress embedding
+const wpContainerClass = "budget-tracker-wp-container";
+
 const Index = () => {
   const isMobile = useIsMobile();
 
   return (
     <BudgetProvider>
-      <div className="min-h-screen bg-background pb-20">
+      <div className={`min-h-screen bg-background pb-20 ${wpContainerClass}`}>
         <Header />
         
         <main className="container px-4 mx-auto max-w-7xl">

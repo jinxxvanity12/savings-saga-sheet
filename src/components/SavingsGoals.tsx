@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useBudget, SavingsGoal } from '@/context/BudgetContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,7 +37,6 @@ const SavingsGoals = () => {
       deadline: newGoal.deadline || undefined,
     });
     
-    // Reset form
     setNewGoal({
       name: '',
       targetAmount: '',
@@ -56,7 +54,6 @@ const SavingsGoals = () => {
     
     contributeSavingsGoal(showContribute, parseFloat(contribution));
     
-    // Reset contribution
     setContribution('');
     setShowContribute(null);
   };
@@ -104,7 +101,6 @@ const SavingsGoals = () => {
         </ScrollArea>
       </CardContent>
       
-      {/* Add Goal Dialog */}
       <Dialog open={showAddGoal} onOpenChange={setShowAddGoal}>
         <DialogContent>
           <DialogHeader>
@@ -175,7 +171,6 @@ const SavingsGoals = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Contribute Dialog */}
       <Dialog open={!!showContribute} onOpenChange={(open) => !open && setShowContribute(null)}>
         <DialogContent>
           <DialogHeader>
