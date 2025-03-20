@@ -1,11 +1,12 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { useBudget, Transaction } from '@/context/BudgetContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import ExpenseExport from './ExpenseExport';
 
 // Define chart colors
 const COLORS = [
@@ -18,6 +19,7 @@ const COLORS = [
 const CategoryBreakdown = () => {
   const { transactions } = useBudget();
   const isMobile = useIsMobile();
+  const chartRef = useRef<HTMLDivElement>(null);
 
   const expenseData = useMemo(() => {
     // Filter to expenses only
@@ -43,9 +45,12 @@ const CategoryBreakdown = () => {
 
   return (
     <Card className="animate-slide-up">
-      <CardHeader>
-        <CardTitle>Expense Breakdown</CardTitle>
-        <CardDescription>Your spending by category</CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between">
+        <div>
+          <CardTitle>Expense Breakdown</CardTitle>
+          <CardDescription>Your spending by category</CardDescription>
+        </div>
+        <ExpenseExport />
       </CardHeader>
       
       <CardContent>
@@ -59,7 +64,7 @@ const CategoryBreakdown = () => {
             "flex gap-6",
             isMobile ? "flex-col" : "flex-row"
           )}>
-            <div className="flex-1 min-h-[250px]">
+            <div className="flex-1 min-h-[250px]" ref={chartRef}>
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
                   <Pie

@@ -29,6 +29,15 @@ export interface SavingsGoal {
   deadline?: string;
 }
 
+export interface Debt {
+  id: string;
+  name: string;
+  totalAmount: number;
+  paidAmount: number;
+  interestRate?: number;
+  dueDate?: string;
+}
+
 export interface MonthData {
   transactions: Transaction[];
   budgets: Budget[];
@@ -38,6 +47,7 @@ interface BudgetContextType {
   transactions: Transaction[];
   budgets: Budget[];
   savingsGoals: SavingsGoal[];
+  debts: Debt[];
   categories: string[];
   addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
   deleteTransaction: (id: string) => void;
@@ -49,12 +59,19 @@ interface BudgetContextType {
   updateSavingsGoal: (goal: SavingsGoal) => void;
   deleteSavingsGoal: (id: string) => void;
   contributeSavingsGoal: (id: string, amount: number) => void;
+  addDebt: (debt: Omit<Debt, 'id'>) => void;
+  updateDebt: (debt: Debt) => void;
+  deleteDebt: (id: string) => void;
+  makeDebtPayment: (id: string, amount: number) => void;
+  addCategory: (category: string) => void;
+  updateCategory: (index: number, newName: string) => void;
+  deleteCategory: (index: number) => void;
   totalIncome: number;
   totalExpenses: number;
   balance: number;
   currentMonth: Date;
   setCurrentMonth: (date: Date) => void;
-  allTransactions: Transaction[]; // Add this to expose all transactions
+  allTransactions: Transaction[]; // Keep all transactions across all months
 }
 
 // Default categories
@@ -90,6 +107,18 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const saved = localStorage.getItem('savingsGoals');
     return saved ? JSON.parse(saved) : [];
   });
+  
+  // Store debts separately to be shared across all months
+  const [debts, setDebts] = useState<Debt[]>(() => {
+    const saved = localStorage.getItem('debts');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
+  // Store categories to be shared across all months
+  const [categories, setCategories] = useState<string[]>(() => {
+    const saved = localStorage.getItem('categories');
+    return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
+  });
 
   // Default empty data for a new month
   const emptyMonthData: MonthData = {
@@ -112,8 +141,6 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   // Get all transactions across all months for yearly summaries
   const allTransactions = Object.values(monthlyData).flatMap(monthData => monthData.transactions || []);
-
-  const [categories] = useState<string[]>(DEFAULT_CATEGORIES);
 
   // Calculate totals for current month
   const totalIncome = transactions
@@ -143,6 +170,88 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   useEffect(() => {
     localStorage.setItem('savingsGoals', JSON.stringify(savingsGoals));
   }, [savingsGoals]);
+  
+  // Persist debts to localStorage
+  useEffect(() => {
+    localStorage.setItem('debts', JSON.stringify(debts));
+  }, [debts]);
+  
+  // Persist categories to localStorage
+  useEffect(() => {
+    localStorage.setItem('categories', JSON.stringify(categories));
+  }, [categories]);
+
+  // Category functions
+  const addCategory = (category: string) => {
+    if (categories.includes(category)) {
+      toast.error('Category already exists');
+      return;
+    }
+    
+    setCategories([...categories, category]);
+    toast.success('Category added');
+  };
+  
+  const updateCategory = (index: number, newName: string) => {
+    if (index < 0 || index >= categories.length) return;
+    
+    const oldName = categories[index];
+    
+    // Update categories array
+    const updatedCategories = [...categories];
+    updatedCategories[index] = newName;
+    setCategories(updatedCategories);
+    
+    // Update all transactions with this category
+    const updatedMonthlyData = { ...monthlyData };
+    
+    Object.keys(updatedMonthlyData).forEach(monthKey => {
+      const monthData = updatedMonthlyData[monthKey];
+      
+      // Update transactions
+      monthData.transactions = monthData.transactions.map(t => 
+        t.category === oldName ? { ...t, category: newName } : t
+      );
+      
+      // Update budgets
+      monthData.budgets = monthData.budgets.map(b => 
+        b.category === oldName ? { ...b, category: newName } : b
+      );
+    });
+    
+    setMonthlyData(updatedMonthlyData);
+    toast.success('Category updated');
+  };
+  
+  const deleteCategory = (index: number) => {
+    if (index < 0 || index >= categories.length) return;
+    
+    const categoryToDelete = categories[index];
+    
+    // Check if category is in use
+    let isInUse = false;
+    
+    for (const monthKey in monthlyData) {
+      const monthData = monthlyData[monthKey];
+      
+      if (monthData.transactions.some(t => t.category === categoryToDelete) ||
+          monthData.budgets.some(b => b.category === categoryToDelete)) {
+        isInUse = true;
+        break;
+      }
+    }
+    
+    if (isInUse) {
+      toast.error('Cannot delete category that is in use');
+      return;
+    }
+    
+    // Remove category
+    const updatedCategories = categories.filter((_, i) => i !== index);
+    setCategories(updatedCategories);
+    
+    toast.success('Category deleted');
+  };
 
   // Transaction functions
   const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
@@ -287,7 +396,7 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     toast.success('Budget deleted');
   };
 
-  // Savings goal functions - now operating on the global savingsGoals state
+  // Savings goal functions - global across all months
   const addSavingsGoal = (goal: Omit<SavingsGoal, 'id'>) => {
     const newGoal: SavingsGoal = {
       ...goal,
@@ -346,11 +455,72 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       description: `$${amount.toFixed(2)} added to savings goal`
     });
   };
+  
+  // Debt functions - global across all months
+  const addDebt = (debt: Omit<Debt, 'id'>) => {
+    const newDebt: Debt = {
+      ...debt,
+      id: crypto.randomUUID(),
+    };
+    
+    const updatedDebts = [...debts, newDebt];
+    setDebts(updatedDebts);
+    
+    toast.success('Debt added', {
+      description: `${debt.name}: $${debt.totalAmount.toFixed(2)}`
+    });
+  };
+  
+  const updateDebt = (updatedDebt: Debt) => {
+    const updatedDebts = debts.map(d => 
+      d.id === updatedDebt.id ? updatedDebt : d
+    );
+    
+    setDebts(updatedDebts);
+    
+    toast.success('Debt updated');
+  };
+  
+  const deleteDebt = (id: string) => {
+    const updatedDebts = debts.filter(d => d.id !== id);
+    
+    setDebts(updatedDebts);
+    
+    toast.success('Debt deleted');
+  };
+  
+  const makeDebtPayment = (id: string, amount: number) => {
+    const debt = debts.find(d => d.id === id);
+    
+    if (!debt) return;
+    
+    const updatedDebts = debts.map(d => 
+      d.id === id
+        ? { ...d, paidAmount: d.paidAmount + amount }
+        : d
+    );
+    
+    setDebts(updatedDebts);
+    
+    // Add as expense transaction
+    addTransaction({
+      amount,
+      description: `Payment to ${debt.name}`,
+      category: 'Debt',
+      date: new Date().toISOString().split('T')[0],
+      type: 'expense'
+    });
+    
+    toast.success('Payment made', {
+      description: `$${amount.toFixed(2)} paid toward ${debt.name}`
+    });
+  };
 
   const value = {
     transactions,
     budgets,
     savingsGoals,
+    debts,
     categories,
     addTransaction,
     deleteTransaction,
@@ -362,12 +532,19 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     updateSavingsGoal,
     deleteSavingsGoal,
     contributeSavingsGoal,
+    addDebt,
+    updateDebt,
+    deleteDebt,
+    makeDebtPayment,
+    addCategory,
+    updateCategory,
+    deleteCategory,
     totalIncome,
     totalExpenses,
     balance,
     currentMonth,
     setCurrentMonth,
-    allTransactions // Expose all transactions
+    allTransactions
   };
 
   return (
