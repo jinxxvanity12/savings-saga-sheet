@@ -21,21 +21,19 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    // Optimize output for PHP integration
+    // Optimize output for WordPress integration
     outDir: 'dist',
-    assetsDir: './',
+    assetsDir: 'assets',
     rollupOptions: {
       output: {
-        // Ensure assets have consistent names for PHP integration
-        entryFileNames: 'index.js',
-        chunkFileNames: 'chunk-[name].js',
-        assetFileNames: (assetInfo) => {
-          const info = assetInfo.name.split('.');
-          const ext = info[info.length - 1];
-          if (/\.(css)$/i.test(assetInfo.name)) {
-            return 'index.css';
+        // Ensure assets have consistent names for WordPress integration
+        entryFileNames: 'assets/[name].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: (info) => {
+          if (info.name && /\.(css)$/i.test(info.name)) {
+            return 'assets/[name].[ext]';
           }
-          return `assets/[name].[ext]`;
+          return 'assets/[name].[hash].[ext]';
         },
       },
     },
