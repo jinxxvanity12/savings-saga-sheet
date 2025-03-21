@@ -9,12 +9,13 @@ import MonthlyDashboard from '@/components/MonthlyDashboard';
 import TransactionForm from '@/components/TransactionForm';
 import DebtTracker from '@/components/DebtTracker';
 import CategoryEditor from '@/components/CategoryEditor';
-import { BudgetProvider } from '@/context/BudgetContext';
+import BudgetContextWrapper from '@/context/BudgetContextWrapper';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Settings, Layout, ArrowDown, ArrowUp, X } from 'lucide-react';
+import UserHeader from '@/components/UserHeader';
 
 // Add a CSS class for WordPress embedding
 const wpContainerClass = "budget-tracker-wp-container";
@@ -62,83 +63,87 @@ const Index = () => {
   };
 
   return (
-    <BudgetProvider>
+    <BudgetContextWrapper>
       <div className={`min-h-screen bg-background pb-20 ${wpContainerClass}`}>
         <Header />
         
         <div className="container px-4 mx-auto max-w-7xl">
-          <div className="flex justify-end gap-2 mb-4">
-            <Dialog open={layoutOpen} onOpenChange={setLayoutOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Layout className="h-4 w-4" />
-                  Customize Layout
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                  <DialogTitle>Customize Dashboard Layout</DialogTitle>
-                  <DialogDescription>
-                    Drag and drop or use arrows to reorder widgets
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                  <div className="space-y-2">
-                    {widgetOrder.map((widget, index) => (
-                      <div 
-                        key={widget} 
-                        className="flex items-center justify-between p-2 bg-secondary/50 rounded-md"
-                      >
-                        <span>{widgets[widget].title}</span>
-                        <div className="flex gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => moveWidget(index, 'up')} 
-                            disabled={index === 0}
-                          >
-                            <ArrowUp className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => moveWidget(index, 'down')} 
-                            disabled={index === widgetOrder.length - 1}
-                          >
-                            <ArrowDown className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-4 flex justify-end">
-                    <Button variant="outline" size="sm" onClick={resetLayout}>
-                      Reset to Default
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+          <div className="flex justify-between gap-2 mb-4 items-center">
+            <UserHeader />
             
-            <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Settings className="h-4 w-4" />
-                  Settings
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px]">
-                <DialogHeader>
-                  <DialogTitle>Settings</DialogTitle>
-                  <DialogDescription>
-                    Manage your budget categories
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                  <CategoryEditor />
-                </div>
-              </DialogContent>
-            </Dialog>
+            <div className="flex gap-2">
+              <Dialog open={layoutOpen} onOpenChange={setLayoutOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Layout className="h-4 w-4" />
+                    Customize Layout
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle>Customize Dashboard Layout</DialogTitle>
+                    <DialogDescription>
+                      Drag and drop or use arrows to reorder widgets
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4">
+                    <div className="space-y-2">
+                      {widgetOrder.map((widget, index) => (
+                        <div 
+                          key={widget} 
+                          className="flex items-center justify-between p-2 bg-secondary/50 rounded-md"
+                        >
+                          <span>{widgets[widget].title}</span>
+                          <div className="flex gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => moveWidget(index, 'up')} 
+                              disabled={index === 0}
+                            >
+                              <ArrowUp className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => moveWidget(index, 'down')} 
+                              disabled={index === widgetOrder.length - 1}
+                            >
+                              <ArrowDown className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                      <Button variant="outline" size="sm" onClick={resetLayout}>
+                        Reset to Default
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              
+              <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Settings className="h-4 w-4" />
+                    Settings
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[600px]">
+                  <DialogHeader>
+                    <DialogTitle>Settings</DialogTitle>
+                    <DialogDescription>
+                      Manage your budget categories
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4">
+                    <CategoryEditor />
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
           
           <main>
@@ -152,7 +157,7 @@ const Index = () => {
         
         <TransactionForm />
       </div>
-    </BudgetProvider>
+    </BudgetContextWrapper>
   );
 };
 
