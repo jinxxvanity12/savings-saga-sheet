@@ -1,7 +1,7 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { toast } from 'sonner';
 import { format, parse, getMonth, getYear } from 'date-fns';
+import { v4 as uuidv4 } from 'uuid';
 
 // Types
 export type TransactionType = 'income' | 'expense';
@@ -71,7 +71,7 @@ interface BudgetContextType {
   balance: number;
   currentMonth: Date;
   setCurrentMonth: (date: Date) => void;
-  allTransactions: Transaction[]; // Keep all transactions across all months
+  allTransactions: Transaction[];
 }
 
 // Default categories
@@ -257,7 +257,7 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
     const newTransaction = {
       ...transaction,
-      id: crypto.randomUUID(),
+      id: uuidv4(),
     };
     
     const updatedTransactions = [newTransaction, ...transactions];
@@ -400,7 +400,7 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const addSavingsGoal = (goal: Omit<SavingsGoal, 'id'>) => {
     const newGoal: SavingsGoal = {
       ...goal,
-      id: crypto.randomUUID(),
+      id: uuidv4(),
     };
     
     const updatedGoals = [...savingsGoals, newGoal];
@@ -460,7 +460,7 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const addDebt = (debt: Omit<Debt, 'id'>) => {
     const newDebt: Debt = {
       ...debt,
-      id: crypto.randomUUID(),
+      id: uuidv4(),
     };
     
     const updatedDebts = [...debts, newDebt];
