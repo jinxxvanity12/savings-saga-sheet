@@ -1,6 +1,7 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { toast } from 'sonner';
-import { format, parse, getMonth, getYear } from 'date-fns';
+import { format, parse, getMonth, getYear, subMonths } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 
 // Types
@@ -72,6 +73,7 @@ interface BudgetContextType {
   currentMonth: Date;
   setCurrentMonth: (date: Date) => void;
   allTransactions: Transaction[];
+  copyPreviousMonthBudgets: () => void;
 }
 
 // Default categories
@@ -159,6 +161,42 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       ...prev,
       [currentMonthKey]: newData
     }));
+  };
+
+  // Function to copy budgets from previous month
+  const copyPreviousMonthBudgets = () => {
+    // Calculate previous month's key
+    const previousMonth = subMonths(currentMonth, 1);
+    const previousMonthKey = getMonthKey(previousMonth);
+    
+    // Check if previous month has data
+    if (!monthlyData[previousMonthKey]) {
+      toast.error('No budget data found for previous month');
+      return;
+    }
+    
+    const previousBudgets = monthlyData[previousMonthKey].budgets || [];
+    
+    if (previousBudgets.length === 0) {
+      toast.error('No budget data found for previous month');
+      return;
+    }
+    
+    // Copy previous month's budgets with zeroed spent values
+    const copiedBudgets = previousBudgets.map(budget => ({
+      ...budget,
+      spent: 0
+    }));
+    
+    // Update current month data
+    updateMonthData({
+      ...currentData,
+      budgets: copiedBudgets
+    });
+    
+    toast.success('Budget categories copied from previous month', {
+      description: 'Spending has been reset to zero'
+    });
   };
 
   // Persist to localStorage
@@ -544,7 +582,8 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     balance,
     currentMonth,
     setCurrentMonth,
-    allTransactions
+    allTransactions,
+    copyPreviousMonthBudgets
   };
 
   return (

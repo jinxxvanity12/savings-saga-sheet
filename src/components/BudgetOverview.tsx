@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useBudget, Budget } from '@/context/BudgetContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,11 +9,11 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { PlusCircle, AlertCircle } from 'lucide-react';
+import { PlusCircle, AlertCircle, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const BudgetOverview = () => {
-  const { budgets, categories, addBudget } = useBudget();
+  const { budgets, categories, addBudget, copyPreviousMonthBudgets } = useBudget();
   const [open, setOpen] = useState(false);
   
   const [newBudget, setNewBudget] = useState<Partial<Budget>>({
@@ -55,6 +56,10 @@ const BudgetOverview = () => {
     setOpen(false);
   };
 
+  const handleCopyPreviousMonth = () => {
+    copyPreviousMonthBudgets();
+  };
+
   return (
     <Card className="animate-slide-up">
       <CardHeader className="flex flex-row items-center justify-between">
@@ -63,84 +68,96 @@ const BudgetOverview = () => {
           <CardDescription>Track your spending against budget limits</CardDescription>
         </div>
         
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="gap-1">
-              <PlusCircle className="h-4 w-4" />
-              <span>Add Budget</span>
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px] w-[95vw] mx-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Budget</DialogTitle>
-              <DialogDescription>Set a spending limit for a category</DialogDescription>
-            </DialogHeader>
-            
-            <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-              {error && (
-                <div className="bg-destructive/10 text-destructive text-sm p-2 rounded-md flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{error}</span>
-                </div>
-              )}
+        <div className="flex space-x-2">
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="gap-1"
+            onClick={handleCopyPreviousMonth}
+          >
+            <Copy className="h-4 w-4" />
+            <span>Copy Previous</span>
+          </Button>
+          
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-1">
+                <PlusCircle className="h-4 w-4" />
+                <span>Add Budget</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px] w-[95vw] mx-auto">
+              <DialogHeader>
+                <DialogTitle>Create New Budget</DialogTitle>
+                <DialogDescription>Set a spending limit for a category</DialogDescription>
+              </DialogHeader>
               
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select
-                  value={newBudget.category}
-                  onValueChange={(value) => {
-                    setNewBudget({ ...newBudget, category: value });
-                    setError('');
-                  }}
-                >
-                  <SelectTrigger id="category">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableCategories.length === 0 ? (
-                      <SelectItem value="" disabled>
-                        All categories have budgets
-                      </SelectItem>
-                    ) : (
-                      availableCategories.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="amount">Monthly Budget Amount</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5">$</span>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    className="pl-7"
-                    value={newBudget.amount || ''}
-                    onChange={(e) => {
-                      setNewBudget({ ...newBudget, amount: parseFloat(e.target.value) || 0 });
+              <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+                {error && (
+                  <div className="bg-destructive/10 text-destructive text-sm p-2 rounded-md flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>{error}</span>
+                  </div>
+                )}
+                
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category</Label>
+                  <Select
+                    value={newBudget.category}
+                    onValueChange={(value) => {
+                      setNewBudget({ ...newBudget, category: value });
                       setError('');
                     }}
-                  />
+                  >
+                    <SelectTrigger id="category">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableCategories.length === 0 ? (
+                        <SelectItem value="" disabled>
+                          All categories have budgets
+                        </SelectItem>
+                      ) : (
+                        availableCategories.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
-              
-              <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Create Budget</Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Monthly Budget Amount</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5">$</span>
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      className="pl-7"
+                      value={newBudget.amount || ''}
+                      onChange={(e) => {
+                        setNewBudget({ ...newBudget, amount: parseFloat(e.target.value) || 0 });
+                        setError('');
+                      }}
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">Create Budget</Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </CardHeader>
       
       <CardContent>
